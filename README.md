@@ -1,0 +1,1 @@
+this project is useful of the Lettuce redis client and sentinel mode
