@@ -53,7 +53,7 @@
     </bean>
 
     <!-- redis api -->
-    <bean id="redisClient" class="com.biocare.redis.RedisClient">
+    <bean id="redisClient" class="com.mariston.redis.RedisClient">
         <property name="defaultLettucePool" ref="defaultLettucePool"/>
     </bean>
 
