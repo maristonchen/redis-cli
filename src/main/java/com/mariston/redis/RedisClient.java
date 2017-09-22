@@ -3,6 +3,7 @@ package com.mariston.redis;
 import com.alibaba.fastjson.JSON;
 import com.lambdaworks.redis.RedisAsyncConnection;
 import com.lambdaworks.redis.RedisFuture;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -71,7 +72,7 @@ public final class RedisClient implements InitializingBean, DisposableBean {
      */
     public void put(String key, String value, int index) {
         Assert.hasText(key, "key is empty");
-        Assert.isTrue(index >= 0 && index < databases, "the index of database range must be between 0 and "+databases);
+        Assert.isTrue(index >= 0 && index < databases, "the index of database range must be between 0 and " + databases);
         RedisAsyncConnection<byte[], byte[]> connection = null;
         try {
             connection = getConn(index);
@@ -106,7 +107,7 @@ public final class RedisClient implements InitializingBean, DisposableBean {
      */
     public void put(String key, long seconds, String value, int index) {
         Assert.hasText(key, "key is empty");
-        Assert.isTrue(index >= 0 && index < databases, "the index of database range must be between 0 and "+databases);
+        Assert.isTrue(index >= 0 && index < databases, "the index of database range must be between 0 and " + databases);
         RedisAsyncConnection<byte[], byte[]> connection = null;
         try {
             connection = getConn(index);
@@ -121,6 +122,32 @@ public final class RedisClient implements InitializingBean, DisposableBean {
     }
 
     /**
+     * 限时保存键值对,值是对象
+     *
+     * @param key     键
+     * @param value   值
+     * @param seconds 时长
+     * @param index   数据库
+     */
+    public void putObject(String key, long seconds, Object value, int index) {
+        Assert.hasText(key, "key is empty");
+        Assert.notNull(value, "value is null ");
+        Assert.isTrue(index >= 0 && index < databases, "the index of database range must be between 0 and " + databases);
+        RedisAsyncConnection<byte[], byte[]> connection = null;
+        try {
+            connection = getConn(index);
+            connection.setex(key.getBytes(Charset.forName(DEFAULT_CHARSET)), seconds, ByteUtils.objectToByteArray(value));
+        } catch (Exception e) {
+            logger.error("====限时保存键值对异常[{}]:{}", e.getStackTrace()[0], e.getMessage());
+        } finally {
+            if (connection != null) {
+                defaultLettucePool.returnResource(connection);
+            }
+        }
+    }
+
+
+    /**
      * 永久保存键值map
      *
      * @param key   键
@@ -129,7 +156,7 @@ public final class RedisClient implements InitializingBean, DisposableBean {
      */
     public void putMap(String key, Map<String, String> map, int index) {
         Assert.hasText(key, "key is empty");
-        Assert.isTrue(index >= 0 && index < databases, "the index of database range must be between 0 and "+databases);
+        Assert.isTrue(index >= 0 && index < databases, "the index of database range must be between 0 and " + databases);
         RedisAsyncConnection<byte[], byte[]> connection = null;
         try {
             Map<byte[], byte[]> value = new HashMap<>();
@@ -145,6 +172,80 @@ public final class RedisClient implements InitializingBean, DisposableBean {
                 defaultLettucePool.returnResource(connection);
             }
         }
+    }
+
+    /**
+     * 永久保存file
+     *
+     * @param key   键
+     * @param file  文件
+     * @param index 数据库
+     */
+    public void putFile(String key, File file, int index) {
+        Assert.hasText(key, "key is empty");
+        Assert.notNull(file, "file is null");
+        Assert.isTrue(index >= 0 && index < databases, "the index of database range must be between 0 and " + databases);
+        RedisAsyncConnection<byte[], byte[]> connection = null;
+        try {
+            connection = getConn(index);
+            connection.set(key.getBytes(Charset.forName(DEFAULT_CHARSET)), FileUtils.readFileToByteArray(file));
+        } catch (Exception e) {
+            logger.error("====永久保存file异常[{}]:{}", e.getStackTrace()[0], e.getMessage());
+        } finally {
+            if (connection != null) {
+                defaultLettucePool.returnResource(connection);
+            }
+        }
+    }
+
+    /**
+     * save the file ,and it's life time is the value of {@code seconds}
+     *
+     * @param key     key
+     * @param seconds the time of expire
+     * @param file    file
+     * @param index   the index of database
+     */
+    public void putFile(String key, File file, long seconds, int index) {
+        Assert.hasText(key, "key is null or empty");
+        Assert.notNull(file, "file is null");
+        Assert.isTrue(index >= 0 && index < databases, "the index of database range must be between 0 and " + databases);
+        RedisAsyncConnection<byte[], byte[]> connection = null;
+        try {
+            connection = getConn(index);
+            connection.setex(key.getBytes(Charset.forName(DEFAULT_CHARSET)), seconds, FileUtils.readFileToByteArray(file));
+        } catch (Exception e) {
+            logger.error("====保存file异常[{}]:{}", e.getStackTrace()[0], e.getMessage());
+        } finally {
+            if (connection != null) {
+                defaultLettucePool.returnResource(connection);
+            }
+        }
+    }
+
+    /**
+     * save the file ,and it's life time is forever
+     *
+     * @param key      key
+     * @param filePath path of the  file
+     * @param index    the index of database
+     */
+    public void putFile(String key, String filePath, int index) {
+        Assert.hasText(key, "filePath is null or empty");
+        this.putFile(key, new File(filePath), index);
+    }
+
+    /**
+     * save the file ,and it's life time is the value of {@code seconds}
+     *
+     * @param key      key
+     * @param seconds  the time of expire
+     * @param filePath path of the  file
+     * @param index    the index of database
+     */
+    public void putFile(String key, String filePath, long seconds, int index) {
+        Assert.hasText(key, "filePath is null or empty");
+        this.putFile(key, new File(filePath), seconds, index);
     }
 
     /**
@@ -166,7 +267,7 @@ public final class RedisClient implements InitializingBean, DisposableBean {
      */
     public String get(String key, int index) {
         Assert.hasText(key, "key is empty");
-        Assert.isTrue(index >= 0 && index < databases, "the index of database range must be between 0 and "+databases);
+        Assert.isTrue(index >= 0 && index < databases, "the index of database range must be between 0 and " + databases);
         String value = StringUtils.EMPTY;
         RedisAsyncConnection<byte[], byte[]> connection = null;
         try {
@@ -192,7 +293,7 @@ public final class RedisClient implements InitializingBean, DisposableBean {
      */
     public <T> T get(String key, int index, Class<T> clazz) {
         Assert.hasText(key, "key is empty");
-        Assert.isTrue(index >= 0 && index < databases, "the index of database range must be between 0 and "+databases);
+        Assert.isTrue(index >= 0 && index < databases, "the index of database range must be between 0 and " + databases);
         Assert.notNull(clazz, "the class of object is null");
         RedisAsyncConnection<byte[], byte[]> connection = null;
         try {
@@ -213,6 +314,35 @@ public final class RedisClient implements InitializingBean, DisposableBean {
     }
 
     /**
+     * 获取值
+     *
+     * @param key   键
+     * @param index 数据库 索引
+     * @return String
+     */
+    public <T> T getObject(String key, int index, Class<T> clazz) {
+        Assert.hasText(key, "key is empty");
+        Assert.isTrue(index >= 0 && index < databases, "the index of database range must be between 0 and " + databases);
+        Assert.notNull(clazz, "the class of object is null");
+        RedisAsyncConnection<byte[], byte[]> connection = null;
+        try {
+            connection = getConn(index);
+            RedisFuture<byte[]> bytes = connection.get(key.getBytes(Charset.forName(DEFAULT_CHARSET)));
+            Object obj = ByteUtils.byteArrayToObject(bytes.get());
+            if (obj != null && clazz.equals(obj.getClass())) {
+                return clazz.cast(obj);
+            }
+        } catch (Exception e) {
+            logger.error("===从缓存中获取值异常[{}]:{}", e.getStackTrace()[0], e.getMessage());
+        } finally {
+            if (connection != null) {
+                defaultLettucePool.returnResource(connection);
+            }
+        }
+        return null;
+    }
+
+    /**
      * 获取键值map
      *
      * @param key   键
@@ -221,7 +351,7 @@ public final class RedisClient implements InitializingBean, DisposableBean {
      */
     public Map<String, String> getMap(String key, int index) {
         Assert.hasText(key, "key is empty");
-        Assert.isTrue(index >= 0 && index < databases, "the index of database range must be between 0 and "+databases);
+        Assert.isTrue(index >= 0 && index < databases, "the index of database range must be between 0 and " + databases);
         RedisAsyncConnection<byte[], byte[]> connection = null;
         Map<String, String> map = new HashMap<>();
         try {
@@ -254,7 +384,7 @@ public final class RedisClient implements InitializingBean, DisposableBean {
      */
     public String getField(String key, String field, int index) {
         Assert.hasText(key, "key is null or empty");
-        Assert.isTrue(index >= 0 && index < databases, "the index of database range must be between 0 and "+databases);
+        Assert.isTrue(index >= 0 && index < databases, "the index of database range must be between 0 and " + databases);
         Assert.hasText(field, "field is null or empty");
         RedisAsyncConnection<byte[], byte[]> connection = null;
         String value = StringUtils.EMPTY;
@@ -270,6 +400,35 @@ public final class RedisClient implements InitializingBean, DisposableBean {
             }
         }
         return value;
+    }
+
+    /**
+     * to get the file from the redis database by key
+     *
+     * @param key      key
+     * @param filePath the directory of file
+     * @param index    the index of database
+     * @return {@link File}
+     */
+    public File getFile(String key, String filePath, int index) {
+        Assert.hasText(key, "key is null or empty");
+        Assert.hasText(filePath, "the directory of file is null or empty");
+        Assert.isTrue(index >= 0 && index < databases, "the index of database range must be between 0 and " + databases);
+        RedisAsyncConnection<byte[], byte[]> connection = null;
+        File file = null;
+        try {
+            connection = getConn(index);
+            RedisFuture<byte[]> bytes = connection.get(key.getBytes(Charset.forName(DEFAULT_CHARSET)));
+            file = new File(filePath);
+            FileUtils.writeByteArrayToFile(file, bytes.get());
+        } catch (Exception e) {
+            logger.error("===获取file异常[{}]{}", e.getStackTrace()[0], e.getMessage());
+        } finally {
+            if (connection != null) {
+                defaultLettucePool.returnResource(connection);
+            }
+        }
+        return file;
     }
 
     /**
@@ -289,7 +448,7 @@ public final class RedisClient implements InitializingBean, DisposableBean {
      */
     public void delete(String key, int index) {
         Assert.hasText(key, "key is empty");
-        Assert.isTrue(index >= 0 && index < databases, "the index of database range must be between 0 and "+databases);
+        Assert.isTrue(index >= 0 && index < databases, "the index of database range must be between 0 and " + databases);
         RedisAsyncConnection<byte[], byte[]> connection = null;
         try {
             connection = getConn(index);
@@ -311,7 +470,7 @@ public final class RedisClient implements InitializingBean, DisposableBean {
      */
     public void delField(String key, int index, String... fields) {
         Assert.hasText(key, "key is empty");
-        Assert.isTrue(index >= 0 && index < databases, "the index of database range must be between 0 and "+databases);
+        Assert.isTrue(index >= 0 && index < databases, "the index of database range must be between 0 and " + databases);
         Assert.notEmpty(fields, "fields is null or the size is zero");
         RedisAsyncConnection<byte[], byte[]> connection = null;
         try {
@@ -336,7 +495,7 @@ public final class RedisClient implements InitializingBean, DisposableBean {
      * @param index 数据库
      */
     public void flushdb(int index) {
-        Assert.isTrue(index >= 0 && index < databases, "the index of database range must be between 0 and "+databases);
+        Assert.isTrue(index >= 0 && index < databases, "the index of database range must be between 0 and " + databases);
         RedisAsyncConnection<byte[], byte[]> connection = null;
         try {
             connection = getConn(index);
@@ -371,7 +530,7 @@ public final class RedisClient implements InitializingBean, DisposableBean {
      */
     public boolean expire(String key, long seconds, int index) {
         Assert.hasText(key, "key is empty");
-        Assert.isTrue(index >= 0 && index < databases, "the index of database range must be between 0 and "+databases);
+        Assert.isTrue(index >= 0 && index < databases, "the index of database range must be between 0 and " + databases);
         RedisAsyncConnection<byte[], byte[]> connection = null;
         try {
             connection = getConn(index);

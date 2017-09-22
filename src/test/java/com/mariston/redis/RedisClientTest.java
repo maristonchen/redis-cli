@@ -1,5 +1,6 @@
 package com.mariston.redis;
 
+import org.apache.commons.io.FileUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.slf4j.Logger;
@@ -9,7 +10,10 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import javax.annotation.Resource;
 
+import java.io.File;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.*;
@@ -40,6 +44,27 @@ public class RedisClientTest {
     }
 
     @Test
+    public void putObject() throws Exception {
+        Heart heart = new Heart();
+        heart.setChannel(1);
+        byte[] data = new byte[]{120,23,34,127,22,8,74};
+        heart.setData(data);
+        heart.setLeadEvent((short) 10);
+        heart.setMonitoredTime(23444);
+        heart.setSampleRate(39483948);
+        heart.setRemark("多少的发撒旦法");
+        redisClient.putObject("testObject", 1200, heart, 5);
+    }
+
+    @Test
+    public void putFile() throws Exception {
+        File file = new File("G:/LenovoHdReport.txt");
+        redisClient.putFile("LenovoHdReport", file, 100,1);
+        redisClient.putFile("LenovoHdReport1", "G:/LenovoHdReport.txt",4);
+        redisClient.putFile("LenovoHdReport2", "G:/LenovoHdReport.txt", 100,4);
+    }
+
+    @Test
     public void putMap() throws Exception {
         Map<String, String> map = new HashMap<>();
         map.put("第一", "1");
@@ -54,6 +79,26 @@ public class RedisClientTest {
         String value = redisClient.get("test");
 
         logger.info("the vlaue is {}",value);
+
+    }
+
+    @Test
+    public void getObject() throws Exception {
+
+        Heart heart = redisClient.getObject("testObject", 5, Heart.class);
+
+        logger.info("the vlaue is {}",heart);
+
+    }
+
+    @Test
+    public void getFile() throws Exception {
+
+        File file = redisClient.getFile("LenovoHdReport", "F:/LenovoHdReport.txt", 2);
+        List<String> lines = FileUtils.readLines(file, "GBK");
+        for (String line : lines) {
+            System.out.println(line);
+        }
 
     }
 
