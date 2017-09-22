@@ -53,7 +53,7 @@ public class RedisClientTest {
         heart.setMonitoredTime(23444);
         heart.setSampleRate(39483948);
         heart.setRemark("多少的发撒旦法");
-        redisClient.putObject("testObject", 1200, heart, 5);
+        redisClient.putObject("testObject",  heart, 1200,5);
     }
 
     @Test

@@ -121,6 +121,31 @@ public final class RedisClient implements InitializingBean, DisposableBean {
         }
     }
 
+
+    /**
+     * 限时保存键值对,值是对象
+     *
+     * @param key   键
+     * @param value 值
+     * @param index 数据库
+     */
+    public void putObject(String key, Object value, int index) {
+        Assert.hasText(key, "key is empty");
+        Assert.notNull(value, "value is null ");
+        Assert.isTrue(index >= 0 && index < databases, "the index of database range must be between 0 and " + databases);
+        RedisAsyncConnection<byte[], byte[]> connection = null;
+        try {
+            connection = getConn(index);
+            connection.set(key.getBytes(Charset.forName(DEFAULT_CHARSET)), ByteUtils.objectToByteArray(value));
+        } catch (Exception e) {
+            logger.error("====限时保存键值对异常[{}]:{}", e.getStackTrace()[0], e.getMessage());
+        } finally {
+            if (connection != null) {
+                defaultLettucePool.returnResource(connection);
+            }
+        }
+    }
+
     /**
      * 限时保存键值对,值是对象
      *
@@ -129,7 +154,7 @@ public final class RedisClient implements InitializingBean, DisposableBean {
      * @param seconds 时长
      * @param index   数据库
      */
-    public void putObject(String key, long seconds, Object value, int index) {
+    public void putObject(String key, Object value, long seconds, int index) {
         Assert.hasText(key, "key is empty");
         Assert.notNull(value, "value is null ");
         Assert.isTrue(index >= 0 && index < databases, "the index of database range must be between 0 and " + databases);
